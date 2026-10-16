@@ -1,0 +1,8 @@
+{
+  "name": "Particle Sphere | Immersive Experience",
+  "description": "An interactive 3D particle sphere and cosmic background experience crafted with Three.js and GSAP ScrollTrigger.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

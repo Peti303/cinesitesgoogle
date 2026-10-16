@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Sphere | Immersive Experience</title>
+    <meta name="description" content="An interactive 3D particle sphere and cosmic background experience crafted with Three.js and GSAP ScrollTrigger.">
+    <meta property="og:title" content="Particle Sphere | Immersive Experience">
+    <meta property="og:description" content="An interactive 3D particle sphere and cosmic background experience crafted with Three.js and GSAP ScrollTrigger.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-bg: #fafafa;
+            --color-bg-light: #ffffff;
+            --color-text: #1a1a2e;
+            --color-text-muted: #6b7280;
+            --color-accent: #6366f1;
+            --color-accent-light: #818cf8;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        html {
+            scroll-behavior: auto;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            overflow-x: hidden;
+        }
+
+        #webgl-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        #foreground-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .scroll-container {
+            position: relative;
+            z-index: 2;
+            height: 500vh;
+            pointer-events: none;
+        }
+
+        .hero-section {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            pointer-events: none;
+            padding: calc(16px + var(--safe-top)) 16px calc(32px + var(--safe-bottom));
+        }
+
+        .hero-hint {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            padding: 0 16px;
+        }
+
+        .hero-hint.visible {
+            opacity: 1;
+        }
+
+        .hero-hint.hidden {
+            opacity: 0;
+        }
+
+        .hero-hint span {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--color-text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .scroll-indicator {
+            width: 24px;
+            height: 40px;
+            border: 2px solid var(--color-text-muted);
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .scroll-indicator::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 8px;
+            background: var(--color-accent);
+            border-radius: 2px;
+            animation: scrollBounce 2s infinite;
+        }
+
+        @keyframes scrollBounce {
+            0%, 100% { top: 6px; opacity: 1; }
+            50% { top: 18px; opacity: 0.5; }
+        }
+
+        .main-content {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+        }
+
+        .main-content.visible {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .main-content.allow-scroll {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: calc(140px + var(--safe-bottom));
+        }
+
+        .content-wrapper {
+            max-width: 1200px;
+            width: 90%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .content-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-accent);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            transform: translateY(30px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-content.visible .content-badge {
+            transform: translateY(0);
+            opacity: 1;
+            transition-delay: 0.1s;
+        }
+
+        .main-headline {
+            font-size: clamp(32px, 6vw, 76px);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--color-text) 0%, #4b5563 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-content.visible .main-headline {
+            transform: translateY(0);
+            opacity: 1;
+            transition-delay: 0.2s;
+        }
+
+        .main-subtitle {
+            font-size: clamp(15px, 2vw, 20px);
+            font-weight: 400;
+            color: var(--color-text-muted);
+            line-height: 1.7;
+            max-width: 640px;
+            margin: 0 auto 40px;
+            transform: translateY(40px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-content.visible .main-subtitle {
+            transform: translateY(0);
+            opacity: 1;
+            transition-delay: 0.3s;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            transform: translateY(30px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-content.visible .cta-group {
+            transform: translateY(0);
+            opacity: 1;
+            transition-delay: 0.4s;
+        }
+
+        .btn {
+            padding: 16px 36px;
+            font-size: 15px;
+            font-weight: 500;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--color-text);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-top: 80px;
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-content.visible .features-grid {
+            transform: translateY(0);
+            opacity: 1;
+            transition-delay: 0.5s;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            padding: 32px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-light) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--color-text);
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: var(--color-text-muted);
+            line-height: 1.6;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+            z-index: 100;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--color-bg);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--color-accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: var(--color-text-muted);
+            letter-spacing: 2px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                background: linear-gradient(180deg, var(--color-bg) 0%, #f5f7ff 60%, #ffffff 100%);
+            }
+            .scroll-container {
+                height: 420vh;
+            }
+            .hero-section {
+                align-items: flex-end;
+                padding-bottom: calc(48px + var(--safe-bottom));
+            }
+            .hero-hint {
+                bottom: calc(28px + var(--safe-bottom));
+                gap: 8px;
+            }
+            .hero-hint span {
+                font-size: 12px;
+                letter-spacing: 1.5px;
+            }
+            .content-wrapper {
+                width: 94%;
+                padding: 16px;
+            }
+            .main-headline {
+                font-size: clamp(28px, 8vw, 54px);
+                line-height: 1.15;
+            }
+            .main-subtitle {
+                font-size: 15px;
+                line-height: 1.6;
+                margin-bottom: 28px;
+            }
+            .cta-group {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 14px 20px;
+                font-size: 14px;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+                margin-top: 48px;
+                gap: 16px;
+            }
+            .feature-card {
+                padding: 24px;
+            }
+            .feature-title {
+                font-size: 17px;
+            }
+            .feature-desc {
+                font-size: 14px;
+            }
+            .progress-bar {
+                height: 4px;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .hero-section {
+                padding-top: calc(12px + var(--safe-top));
+            }
+            .hero-hint {
+                bottom: calc(20px + var(--safe-bottom));
+            }
+            .main-content {
+                align-items: flex-start;
+                padding-top: 60px;
+            }
+            .features-grid {
+                margin-top: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">LOADING EXPERIENCE</div>
+    </div>
+
+    <div class="progress-bar" id="progress"></div>
+    <canvas id="webgl-canvas"></canvas>
+    <canvas id="foreground-canvas"></canvas>
+    <div class="scroll-container" id="scroll-container"></div>
+
+    <div class="hero-section">
+        <div class="hero-hint" id="hero-hint">
+            <span>Scroll to explore</span>
+            <div class="scroll-indicator"></div>
+        </div>
+    </div>
+
+    <div class="main-content" id="main-content">
+        <div class="content-wrapper">
+            <div class="content-badge">✨ Welcome to the Future</div>
+            <h1 class="main-headline">Experience Design<br>Beyond Boundaries</h1>
+            <p class="main-subtitle">
+                We craft digital experiences that transcend the ordinary. 
+                Immersive, beautiful, and built for tomorrow's web.
+            </p>
+            <div class="cta-group">
+                <a href="#" class="btn btn-primary">
+                    Get Started
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+                <a href="/references.html" class="btn btn-secondary">Learn More</a>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <h3 class="feature-title">Lightning Fast</h3>
+                    <p class="feature-desc">Optimized performance that delivers instant results without compromising quality.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3 class="feature-title">Beautiful Design</h3>
+                    <p class="feature-desc">Stunning visuals crafted with attention to every pixel and interaction.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">Secure & Reliable</h3>
+                    <p class="feature-desc">Enterprise-grade security that you can trust with your most important data.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <script>
+        const canvas = document.getElementById('webgl-canvas');
+        const foregroundCanvas = document.getElementById('foreground-canvas');
+        const loadingScreen = document.getElementById('loading');
+        const progressBar = document.getElementById('progress');
+        const heroHint = document.getElementById('hero-hint');
+        const mainContent = document.getElementById('main-content');
+        const scrollContainer = document.getElementById('scroll-container');
+
+        const isMobile = window.innerWidth <= 768;
+        const baseCameraZ = isMobile ? 6.4 : 5;
+        const scrollDepth = isMobile ? 11 : 15;
+
+        // ============================================
+        // MAIN SCENE
+        // ============================================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfafafa);
+
+        const cameraFov = isMobile ? 80 : 75;
+        const camera = new THREE.PerspectiveCamera(cameraFov, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+
+        // ============================================
+        // FOREGROUND SCENE
+        // ============================================
+        const fgScene = new THREE.Scene();
+        const fgCamera = new THREE.PerspectiveCamera(cameraFov, window.innerWidth / window.innerHeight, 0.1, 1000);
+        fgCamera.position.z = 5;
+
+        const fgRenderer = new THREE.WebGLRenderer({ canvas: foregroundCanvas, antialias: true, alpha: true });
+        fgRenderer.setSize(window.innerWidth, window.innerHeight);
+        fgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+        fgRenderer.setClearColor(0x000000, 0);
+
+        // ============================================
+        // MOUSE
+        // ============================================
+        const mouse = new THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const rayOrigin = new THREE.Vector3();
+        const rayDirection = new THREE.Vector3();
+        
+        let mouseSpeed = 0;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+        let isMouseActive = false;
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            const dx = event.clientX - prevMouseX;
+            const dy = event.clientY - prevMouseY;
+            mouseSpeed = Math.sqrt(dx * dx + dy * dy);
+            
+            prevMouseX = event.clientX;
+            prevMouseY = event.clientY;
+            isMouseActive = true;
+            
+            raycaster.setFromCamera(mouse, camera);
+            rayOrigin.copy(raycaster.ray.origin);
+            rayDirection.copy(raycaster.ray.direction);
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseleave', () => { isMouseActive = false; mouseSpeed = 0; });
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                onMouseMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+            }
+        });
+        window.addEventListener('touchend', () => { isMouseActive = false; mouseSpeed = 0; });
+
+        // ============================================
+        // PARTICLES CONFIG
+        // ============================================
+        const sphereParticleCount = isMobile ? 2400 : 5000;
+        const backgroundParticleCount = isMobile ? 4500 : 8000;
+        const foregroundParticleCount = isMobile ? 15 : 25;
+        const particleCount = sphereParticleCount + backgroundParticleCount;
+        const sphereRadius = isMobile ? 1.6 : 2;
+
+        // ============================================
+        // MAIN PARTICLES
+        // ============================================
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const originalPositions = new Float32Array(particleCount * 3);
+        const startPositions = new Float32Array(particleCount * 3);
+        const spreadPositions = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const baseSizes = new Float32Array(particleCount);
+        const depthLayers = new Float32Array(particleCount);
+        const floatSpeeds = new Float32Array(particleCount);
+
+        const phi = Math.PI * (3 - Math.sqrt(5));
+
+        for (let i = 0; i < particleCount; i++) {
+            const isSphereParticle = i < sphereParticleCount;
+            
+            if (isSphereParticle) {
+                // ============================================
+                // GÖMB PONTOK - EREDETI PARAMÉTEREK
+                // ============================================
+                const y = 1 - (i / (sphereParticleCount - 1)) * 2;
+                const radius = Math.sqrt(1 - y * y);
+                const theta = phi * i;
+                originalPositions[i * 3] = Math.cos(theta) * radius * sphereRadius;
+                originalPositions[i * 3 + 1] = y * sphereRadius;
+                originalPositions[i * 3 + 2] = Math.sin(theta) * radius * sphereRadius;
+                depthLayers[i] = 0.5;
+                floatSpeeds[i] = 0.5;
+                
+                // EREDETI spread pozíciók
+                spreadPositions[i * 3] = (Math.random() - 0.5) * 60;
+                spreadPositions[i * 3 + 1] = (Math.random() - 0.5) * 40;
+                spreadPositions[i * 3 + 2] = (Math.random() - 0.5) * 120 - 60;
+                
+                // EREDETI méretek
+                baseSizes[i] = Math.random() * 0.5 + 0.3;
+                
+                // EREDETI színek
+                const colorVariation = Math.random();
+                colors[i * 3] = 0.1 + colorVariation * 0.2;
+                colors[i * 3 + 1] = 0.3 + colorVariation * 0.3;
+                colors[i * 3 + 2] = 0.7 + colorVariation * 0.3;
+            } else {
+                // ============================================
+                // HÁTTÉR PONTOK - ÚJ TÉRHATÁSÚ PARAMÉTEREK
+                // ============================================
+                originalPositions[i * 3] = 0;
+                originalPositions[i * 3 + 1] = 0;
+                originalPositions[i * 3 + 2] = 0;
+                
+                // Mélység réteg
+                depthLayers[i] = Math.random();
+                const depth = depthLayers[i];
+                
+                // Közeli pontok - közelebb a kamerához
+                const layerZ = -25 + depth * 35; // -25 to +10
+                spreadPositions[i * 3] = (Math.random() - 0.5) * (40 + depth * 20);
+                spreadPositions[i * 3 + 1] = (Math.random() - 0.5) * (30 + depth * 15);
+                spreadPositions[i * 3 + 2] = layerZ;
+                
+                // Parallax sebesség
+                floatSpeeds[i] = 0.3 + (1 - depth) * 0.7;
+                
+                // Nagyobb méretek közeli pontoknak
+                const depthSize = 0.3 + depth * 1.5;
+                baseSizes[i] = depthSize * (0.5 + Math.random() * 0.5);
+                
+                // Mélység alapú színek
+                const colorVariation = Math.random();
+                const depthFade = 0.7 + depth * 0.3;
+                colors[i * 3] = (0.1 + colorVariation * 0.2) * depthFade;
+                colors[i * 3 + 1] = (0.3 + colorVariation * 0.3) * depthFade;
+                colors[i * 3 + 2] = (0.7 + colorVariation * 0.3) * depthFade;
+            }
+
+            // Kezdő pozíciók - mindkettőnél ugyanaz
+            const startRadius = 15 + Math.random() * 25;
+            const startTheta = Math.random() * Math.PI * 2;
+            const startPhi = Math.acos(2 * Math.random() - 1);
+            
+            startPositions[i * 3] = startRadius * Math.sin(startPhi) * Math.cos(startTheta);
+            startPositions[i * 3 + 1] = startRadius * Math.sin(startPhi) * Math.sin(startTheta);
+            startPositions[i * 3 + 2] = startRadius * Math.cos(startPhi);
+
+            positions[i * 3] = startPositions[i * 3];
+            positions[i * 3 + 1] = startPositions[i * 3 + 1];
+            positions[i * 3 + 2] = startPositions[i * 3 + 2];
+
+            velocities[i * 3] = 0;
+            velocities[i * 3 + 1] = 0;
+            velocities[i * 3 + 2] = 0;
+            
+            sizes[i] = isSphereParticle ? baseSizes[i] : 0;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        // Shader uniform a morph progress-hez
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                uMorphProgress: { value: 0.0 }
+            },
+            vertexShader: `
+                uniform float uMorphProgress;
+                attribute float size;
+                varying vec3 vColor;
+                varying float vSize;
+                varying float vDepth;
+                void main() {
+                    vColor = color;
+                    vSize = size;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vDepth = -mvPosition.z;
+                    
+                    // Gömb fázisban 50-es, háttér fázisban 80-as szorzó
+                    float sizeMult = mix(50.0, 80.0, uMorphProgress);
+                    gl_PointSize = size * (sizeMult / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform float uMorphProgress;
+                varying vec3 vColor;
+                varying float vSize;
+                varying float vDepth;
+                void main() {
+                    if (vSize <= 0.0) discard;
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    
+                    // Gömb fázisban egyszerű, háttér fázisban mélység alapú alpha
+                    float baseSoftness = 0.2;
+                    float depthSoftness = clamp(vDepth * 0.1, 0.2, 0.5);
+                    float softness = mix(baseSoftness, depthSoftness, uMorphProgress);
+                    float alpha = 1.0 - smoothstep(0.5 - softness, 0.5, dist);
+                    
+                    // Mélység alapú halványítás csak háttér fázisban
+                    float depthAlpha = mix(1.0, clamp(vDepth * 0.15, 0.3, 1.0), uMorphProgress);
+                    
+                    gl_FragColor = vec4(vColor, alpha * depthAlpha);
+                }
+            `,
+            transparent: true,
+            vertexColors: true,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // ============================================
+        // FOREGROUND PARTICLES
+        // ============================================
+        const fgGeometry = new THREE.BufferGeometry();
+        const fgPositions = new Float32Array(foregroundParticleCount * 3);
+        const fgColors = new Float32Array(foregroundParticleCount * 3);
+        const fgSizes = new Float32Array(foregroundParticleCount);
+        const fgVelocities = new Float32Array(foregroundParticleCount * 3);
+        const fgBaseSizes = new Float32Array(foregroundParticleCount);
+
+        for (let i = 0; i < foregroundParticleCount; i++) {
+            const side = Math.random();
+            if (side < 0.25) {
+                fgPositions[i * 3] = -15 - Math.random() * 10;
+            } else if (side < 0.5) {
+                fgPositions[i * 3] = 15 + Math.random() * 10;
+            } else {
+                fgPositions[i * 3] = (Math.random() - 0.5) * 30;
+            }
+            fgPositions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+            fgPositions[i * 3 + 2] = 8 + Math.random() * 5;
+
+            fgVelocities[i * 3] = (Math.random() - 0.5) * 0.02;
+            fgVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.015;
+            fgVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+
+            const colorVar = Math.random();
+            fgColors[i * 3] = 0.3 + colorVar * 0.2;
+            fgColors[i * 3 + 1] = 0.4 + colorVar * 0.2;
+            fgColors[i * 3 + 2] = 0.7 + colorVar * 0.2;
+
+            fgBaseSizes[i] = 2 + Math.random() * 4;
+            fgSizes[i] = 0;
+        }
+
+        fgGeometry.setAttribute('position', new THREE.BufferAttribute(fgPositions, 3));
+        fgGeometry.setAttribute('color', new THREE.BufferAttribute(fgColors, 3));
+        fgGeometry.setAttribute('size', new THREE.BufferAttribute(fgSizes, 1));
+
+        const fgMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                attribute float size;
+                varying vec3 vColor;
+                varying float vSize;
+                void main() {
+                    vColor = color;
+                    vSize = size;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = size * (100.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                varying float vSize;
+                void main() {
+                    if (vSize <= 0.0) discard;
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                    alpha *= 0.15;
+                    gl_FragColor = vec4(vColor, alpha);
+                }
+            `,
+            transparent: true,
+            vertexColors: true,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+
+        const fgParticles = new THREE.Points(fgGeometry, fgMaterial);
+        fgScene.add(fgParticles);
+
+        // ============================================
+        // DUST
+        // ============================================
+        const dustCount = isMobile ? 900 : 1500;
+        const dustGeometry = new THREE.BufferGeometry();
+        const dustPositions = new Float32Array(dustCount * 3);
+        const dustColors = new Float32Array(dustCount * 3);
+
+        for (let i = 0; i < dustCount; i++) {
+            dustPositions[i * 3] = (Math.random() - 0.5) * 100;
+            dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+            dustColors[i * 3] = 0.5;
+            dustColors[i * 3 + 1] = 0.6;
+            dustColors[i * 3 + 2] = 0.9;
+        }
+
+        dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+        dustGeometry.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
+
+        const dustMaterial = new THREE.PointsMaterial({
+            size: 0.03,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.4
+        });
+
+        const dustParticles = new THREE.Points(dustGeometry, dustMaterial);
+        scene.add(dustParticles);
+
+        // ============================================
+        // PHYSICS
+        // ============================================
+        const physics = {
+            repulsionRadius: 0.8,
+            repulsionStrength: 0.25,
+            velocityMultiplier: 0.008,
+            explosionThreshold: 80,
+            explosionMultiplier: 0.04,
+            returnSpeed: 0.025,
+            friction: 0.92,
+            maxVelocity: 4.0
+        };
+
+        // ============================================
+        // STATE
+        // ============================================
+        let introProgress = 0;
+        let introStarted = false;
+        let introComplete = false;
+        const introDuration = 2.5;
+        let introStartTime = 0;
+
+        let scrollProgress = 0;
+        let targetScrollProgress = 0;
+        let isInsideSphere = false;
+        let time = 0;
+
+        // ============================================
+        // HELPERS
+        // ============================================
+        const tempVec = new THREE.Vector3();
+        const closestPoint = new THREE.Vector3();
+        
+        function pointToRayDistance(point, origin, direction) {
+            tempVec.subVectors(point, origin);
+            const t = tempVec.dot(direction);
+            if (t < 0) return 1000;
+            closestPoint.copy(direction).multiplyScalar(t).add(origin);
+            return point.distanceTo(closestPoint);
+        }
+
+        function easeOutExpo(t) {
+            return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        }
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        // ============================================
+        // SCROLL
+        // ============================================
+        gsap.registerPlugin(ScrollTrigger);
+
+        ScrollTrigger.create({
+            trigger: '#scroll-container',
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 0.5,
+            onUpdate: (self) => {
+                targetScrollProgress = self.progress;
+                progressBar.style.width = (self.progress * 100) + '%';
+                
+                if (introComplete) {
+                    if (self.progress > 0.02) {
+                        heroHint.classList.remove('visible');
+                        heroHint.classList.add('hidden');
+                    } else {
+                        heroHint.classList.remove('hidden');
+                        heroHint.classList.add('visible');
+                    }
+                }
+                
+                if (self.progress > 0.5) {
+                    if (!isInsideSphere) {
+                        isInsideSphere = true;
+                        mainContent.classList.add('visible');
+                    }
+                } else {
+                    if (isInsideSphere) {
+                        isInsideSphere = false;
+                        mainContent.classList.remove('visible');
+                    }
+                }
+
+                if (self.progress > 0.95) {
+                    mainContent.classList.add('allow-scroll');
+                } else {
+                    mainContent.classList.remove('allow-scroll');
+                    mainContent.scrollTop = 0;
+                }
+            }
+        });
+
+        // ============================================
+        // ANIMATE
+        // ============================================
+        const particleWorldPos = new THREE.Vector3();
+
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            if (introStarted && !introComplete) {
+                const elapsed = (currentTime - introStartTime) / 1000;
+                introProgress = Math.min(elapsed / introDuration, 1);
+                if (introProgress >= 1) {
+                    introComplete = true;
+                    heroHint.classList.add('visible');
+                }
+            }
+
+            const easedIntro = easeOutExpo(introProgress);
+            scrollProgress += (targetScrollProgress - scrollProgress) * 0.1;
+
+            const cameraZ = baseCameraZ - scrollProgress * scrollDepth;
+            camera.position.z = cameraZ;
+            camera.position.x = Math.sin(time * 0.5) * 0.1;
+            camera.position.y = Math.cos(time * 0.3) * 0.1;
+            
+            fgCamera.position.copy(camera.position);
+
+            const positionAttribute = geometry.getAttribute('position');
+            const sizeAttribute = geometry.getAttribute('size');
+            
+            const morphProgress = Math.max(0, (scrollProgress - 0.3) / 0.4);
+            const easedMorph = easeInOutCubic(Math.min(1, morphProgress));
+
+            // Update shader uniform
+            material.uniforms.uMorphProgress.value = easedMorph;
+
+            particles.updateMatrixWorld();
+
+            const inSpherePhase = scrollProgress < 0.15;
+            const inBackgroundPhase = scrollProgress > 0.55;
+            const canInteract = introComplete && (inSpherePhase || inBackgroundPhase);
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const isSphereParticle = i < sphereParticleCount;
+
+                let px = positions[i3];
+                let py = positions[i3 + 1];
+                let pz = positions[i3 + 2];
+
+                const sphereX = originalPositions[i3];
+                const sphereY = originalPositions[i3 + 1];
+                const sphereZ = originalPositions[i3 + 2];
+
+                const startX = startPositions[i3];
+                const startY = startPositions[i3 + 1];
+                const startZ = startPositions[i3 + 2];
+
+                const spreadX = spreadPositions[i3];
+                const spreadY = spreadPositions[i3 + 1];
+                const spreadZ = spreadPositions[i3 + 2];
+
+                let targetX, targetY, targetZ;
+
+                if (isSphereParticle) {
+                    const introX = startX + (sphereX - startX) * easedIntro;
+                    const introY = startY + (sphereY - startY) * easedIntro;
+                    const introZ = startZ + (sphereZ - startZ) * easedIntro;
+
+                    targetX = introX + (spreadX - sphereX) * easedMorph * easedIntro;
+                    targetY = introY + (spreadY - sphereY) * easedMorph * easedIntro;
+                    targetZ = introZ + (spreadZ - sphereZ) * easedMorph * easedIntro;
+
+                    sizeAttribute.array[i] = baseSizes[i];
+                } else {
+                    targetX = startX + (spreadX - startX) * easedMorph;
+                    targetY = startY + (spreadY - startY) * easedMorph;
+                    targetZ = startZ + (spreadZ - startZ) * easedMorph;
+
+                    sizeAttribute.array[i] = baseSizes[i] * easedMorph;
+                }
+
+                // Mouse repulsion
+                if (isMouseActive && canInteract && sizeAttribute.array[i] > 0.1) {
+                    particleWorldPos.set(px, py, pz);
+                    particles.localToWorld(particleWorldPos);
+                    
+                    const distance = pointToRayDistance(particleWorldPos, rayOrigin, rayDirection);
+
+                    if (distance < physics.repulsionRadius) {
+                        const nx = particleWorldPos.x - closestPoint.x;
+                        const ny = particleWorldPos.y - closestPoint.y;
+                        const nz = particleWorldPos.z - closestPoint.z;
+                        
+                        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                        if (len > 0.001) {
+                            const dirX = nx / len;
+                            const dirY = ny / len;
+                            const dirZ = nz / len;
+
+                            const distanceFactor = Math.pow(1 - (distance / physics.repulsionRadius), 2);
+
+                            let force = physics.repulsionStrength * distanceFactor;
+                            force += mouseSpeed * physics.velocityMultiplier * distanceFactor;
+
+                            if (mouseSpeed > physics.explosionThreshold) {
+                                force += (mouseSpeed - physics.explosionThreshold) * physics.explosionMultiplier * distanceFactor;
+                            }
+
+                            velocities[i3] += dirX * force;
+                            velocities[i3 + 1] += dirY * force;
+                            velocities[i3 + 2] += dirZ * force;
+                        }
+                    }
+                }
+
+                const vMag = Math.sqrt(velocities[i3] ** 2 + velocities[i3 + 1] ** 2 + velocities[i3 + 2] ** 2);
+                if (vMag > physics.maxVelocity) {
+                    const scale = physics.maxVelocity / vMag;
+                    velocities[i3] *= scale;
+                    velocities[i3 + 1] *= scale;
+                    velocities[i3 + 2] *= scale;
+                }
+
+                px += velocities[i3];
+                py += velocities[i3 + 1];
+                pz += velocities[i3 + 2];
+
+                velocities[i3] *= physics.friction;
+                velocities[i3 + 1] *= physics.friction;
+                velocities[i3 + 2] *= physics.friction;
+
+                px += (targetX - px) * physics.returnSpeed;
+                py += (targetY - py) * physics.returnSpeed;
+                pz += (targetZ - pz) * physics.returnSpeed;
+
+                // Float animation
+                const floatSpeed = floatSpeeds[i];
+                const floatAmount = introComplete ? 0.015 : 0;
+                const floatX = Math.sin(time * floatSpeed + i * 0.1) * floatAmount * (isSphereParticle ? 0.7 : 1.3);
+                const floatY = Math.cos(time * floatSpeed * 0.7 + i * 0.15) * floatAmount * (isSphereParticle ? 0.7 : 1.3);
+
+                positionAttribute.array[i3] = px + floatX;
+                positionAttribute.array[i3 + 1] = py + floatY;
+                positionAttribute.array[i3 + 2] = pz;
+                
+                positions[i3] = px;
+                positions[i3 + 1] = py;
+                positions[i3 + 2] = pz;
+            }
+
+            positionAttribute.needsUpdate = true;
+            sizeAttribute.needsUpdate = true;
+
+            // Foreground particles
+            const fgPosAttr = fgGeometry.getAttribute('position');
+            const fgSizeAttr = fgGeometry.getAttribute('size');
+            
+            for (let i = 0; i < foregroundParticleCount; i++) {
+                const i3 = i * 3;
+                
+                fgPositions[i3] += fgVelocities[i3];
+                fgPositions[i3 + 1] += fgVelocities[i3 + 1];
+                fgPositions[i3 + 2] += fgVelocities[i3 + 2];
+                
+                if (fgPositions[i3] > 20) fgPositions[i3] = -20;
+                if (fgPositions[i3] < -20) fgPositions[i3] = 20;
+                if (fgPositions[i3 + 1] > 15) fgPositions[i3 + 1] = -15;
+                if (fgPositions[i3 + 1] < -15) fgPositions[i3 + 1] = 15;
+                
+                fgPosAttr.array[i3] = fgPositions[i3];
+                fgPosAttr.array[i3 + 1] = fgPositions[i3 + 1];
+                fgPosAttr.array[i3 + 2] = fgPositions[i3 + 2];
+                
+                fgSizeAttr.array[i] = fgBaseSizes[i] * easedMorph;
+            }
+            
+            fgPosAttr.needsUpdate = true;
+            fgSizeAttr.needsUpdate = true;
+
+            particles.rotation.y = time * (introComplete ? 0.05 : 0.02) + scrollProgress * 0.5;
+            particles.rotation.x = Math.sin(time * 0.2) * 0.1 * easedIntro;
+
+            dustParticles.rotation.y = time * 0.02;
+            dustParticles.rotation.x = time * 0.01;
+
+            const bgIntensity = 0.98 - scrollProgress * 0.02;
+            scene.background = new THREE.Color(bgIntensity, bgIntensity, bgIntensity + 0.01);
+
+            renderer.render(scene, camera);
+            fgRenderer.render(fgScene, fgCamera);
+        }
+
+        // ============================================
+        // RESIZE & START
+        // ============================================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            fgCamera.aspect = window.innerWidth / window.innerHeight;
+            fgCamera.updateProjectionMatrix();
+            fgRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        if (isMobile) {
+            scrollContainer.style.height = '420vh';
+        }
+
+        setTimeout(() => {
+            loadingScreen.classList.add('hidden');
+            requestAnimationFrame((timestamp) => {
+                introStarted = true;
+                introStartTime = timestamp;
+                animate(timestamp);
+            });
+        }, 1000);
+
+        document.addEventListener('keydown', (e) => {
+            const scrollAmount = window.innerHeight * 0.1;
+            if (e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                window.scrollBy({ top: -scrollAmount, behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
